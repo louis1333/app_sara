@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💙 Mi App</title>
+
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<header>
+    <h1>Hola, amor 💙</h1>
+    <p>Organiza tu día y tu entrenamiento</p>
+</header>
+
+<nav>
+    <button onclick="showSection('calendar')">📅</button>
+    <button onclick="showSection('gym')">🏋️</button>
+    <button onclick="showSection('notes')">📝</button>
+</nav>
+
+<main>
+
+<section id="calendar" class="section active">
+    <h2>Calendario</h2>
+    <p>Próximamente</p>
+</section>
+
+<section id="gym" class="section">
+    <h2>Gimnasio</h2>
+    <p>Próximamente</p>
+</section>
+
+<section id="notes" class="section">
+    <h2>Notas rápidas</h2>
+
+    <textarea id="noteContent" placeholder="Escribe algo..."></textarea>
+    <button onclick="saveNote()">Guardar</button>
+
+    <ul id="notesList"></ul>
+</section>
+
+</main>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
