@@ -1,4 +1,4 @@
-const API = 'http://127.0.0.1:5000';
+const API = '';
 
 function showSection(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -35,3 +35,21 @@ async function loadNotes() {
 }
 
 loadNotes();
+
+async function loadDailyMessage() {
+    try {
+        const res = await fetch(`${API}/message`);
+        const data = await res.json();
+
+        const el = document.getElementById('daily-message');
+        if (el) {
+            el.innerText = data.message || '💖';
+        }
+    } catch (err) {
+        console.error('Error cargando mensaje diario', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadDailyMessage();
+});
