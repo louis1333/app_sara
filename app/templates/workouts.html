@@ -1,62 +1,172 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gym 🏋️</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-[#fdf2f8] min-h-screen flex flex-col">
 
+<!-- HEADER -->
 <header class="bg-white shadow p-4 text-center font-semibold">
-  🏋️ Rutinas
+  🏋️ Rutinas de Entrenamiento
 </header>
 
-<main class="flex-1 p-4 pb-24">
-  <input id="date" type="date"
-    class="w-full border rounded-lg p-2 mb-2">
-  <input id="routine" placeholder="Rutina"
-    class="w-full border rounded-lg p-2 mb-2">
+<!-- MAIN -->
+<main class="flex-1 p-4 pb-28 space-y-6">
 
-  <button onclick="addWorkout()"
-    class="w-full bg-pink-400 text-white py-2 rounded-xl mb-4">
-    Guardar rutina
-  </button>
+  <!-- CREAR RUTINA -->
+  <section class="bg-white p-4 rounded-xl shadow">
+    <h2 class="font-semibold mb-2">➕ Nueva rutina</h2>
 
-  <ul id="list" class="space-y-2 text-sm"></ul>
+    <input id="workoutDate" type="date"
+      class="w-full border rounded-lg p-2 mb-2" />
+
+    <input id="workoutRoutine" placeholder="Nombre de la rutina"
+      class="w-full border rounded-lg p-2 mb-2" />
+
+    <button onclick="addWorkout()"
+      class="w-full bg-pink-400 text-white py-2 rounded-xl font-semibold">
+      Guardar rutina
+    </button>
+  </section>
+
+  <!-- LISTA DE RUTINAS -->
+  <section>
+    <h2 class="font-semibold mb-2 text-gray-700">📋 Mis rutinas</h2>
+    <ul id="workoutsList" class="space-y-4"></ul>
+  </section>
+
 </main>
 
+<!-- NAVBAR -->
 <nav class="fixed bottom-0 inset-x-0 bg-white border-t flex justify-around py-2 text-xs">
-  <a href="/app">🏠 Inicio</a>
-  <a href="/app/events">📅 Eventos</a>
+  <a href="/" class="text-gray-500">🏠 Inicio</a>
+  <a href="/app/events" class="text-gray-500">📅 Eventos</a>
   <a href="/app/workouts" class="text-pink-400">🏋️ Gym</a>
-  <a href="/app/notes">📝 Notas</a>
+  <a href="/app/notes" class="text-gray-500">📝 Notas</a>
 </nav>
 
+<!-- JS -->
 <script>
+/* ============================
+   WORKOUTS
+============================ */
+
 async function addWorkout() {
+  const date = workoutDate.value
+  const routine = workoutRoutine.value
+
+  if (!date || !routine) return alert('Completa los campos')
+
   await fetch('/workouts', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ date, routine })
+  })
+
+  workoutRoutine.value = ''
+  loadWorkouts()
+}
+
+async function loadWorkouts() {
+  const res = await fetch('/workouts')
+  const workouts = await res.json()
+
+  workoutsList.innerHTML = ''
+
+  for (const w of workouts) {
+    const li = document.createElement('li')
+    li.className = 'bg-white rounded-xl p-4 shadow space-y-3'
+
+    li.innerHTML = `
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="font-semibold">🏋️ ${w.routine}</p>
+          <p class="text-xs text-gray-500">${w.date}</p>
+        </div>
+        <button onclick="toggleExercises(${w.id})" class="text-pink-400 text-sm">
+          Ver ejercicios
+        </button>
+      </div>
+
+      <div id="exercises-${w.id}" class="hidden space-y-2">
+        <div class="border-t pt-3 space-y-2">
+          <input placeholder="Ejercicio"
+            id="name-${w.id}"
+            class="w-full border rounded p-2 text-sm" />
+
+          <div class="flex gap-2">
+            <input placeholder="Sets" type="number"
+              id="sets-${w.id}"
+              class="w-1/3 border rounded p-2 text-sm" />
+            <input placeholder="Reps" type="number"
+              id="reps-${w.id}"
+              class="w-1/3 border rounded p-2 text-sm" />
+            <input placeholder="Kg" type="number"
+              id="weight-${w.id}"
+              class="w-1/3 border rounded p-2 text-sm" />
+          </div>
+
+          <button onclick="addExercise(${w.id})"
+            class="w-full bg-pink-300 text-white py-1 rounded-lg text-sm">
+            ➕ Agregar ejercicio
+          </button>
+        </div>
+
+        <ul id="list-${w.id}" class="text-sm space-y-1 mt-2"></ul>
+      </div>
+    `
+
+    workoutsList.appendChild(li)
+  }
+}
+
+async function toggleExercises(id) {
+  const box = document.getElementById(`exercises-${id}`)
+  box.classList.toggle('hidden')
+  loadExercises(id)
+}
+
+/* ============================
+   EXERCISES
+============================ */
+
+async function addExercise(workoutId) {
+  const name = document.getElementById(`name-${workoutId}`).value
+  const sets = document.getElementById(`sets-${workoutId}`).value
+  const reps = document.getElementById(`reps-${workoutId}`).value
+  const weight = document.getElementById(`weight-${workoutId}`).value
+
+  if (!name) return
+
+  await fetch(`/workouts/${workoutId}/exercises`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      date: date.value,
-      routine: routine.value
-    })
+    body: JSON.stringify({ name, sets, reps, weight })
   })
-  load()
+
+  loadExercises(workoutId)
 }
 
-async function load() {
-  const r = await fetch('/workouts')
-  const d = await r.json()
+async function loadExercises(workoutId) {
+  const res = await fetch(`/workouts/${workoutId}/exercises`)
+  const data = await res.json()
+
+  const list = document.getElementById(`list-${workoutId}`)
   list.innerHTML = ''
-  d.forEach(w => {
-    list.innerHTML += `<li>🏋️ ${w.date} — ${w.routine}</li>`
+
+  data.forEach(e => {
+    const li = document.createElement('li')
+    li.textContent = `🏋️ ${e.name} — ${e.sets || '-'}x${e.reps || '-'} • ${e.weight || 0}kg`
+    list.appendChild(li)
   })
 }
 
-load()
+loadWorkouts()
 </script>
 
 </body>
