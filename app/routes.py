@@ -14,16 +14,44 @@ from app.models import (
 main = Blueprint('main', __name__)
 
 # =====================================================
-# VISTA PRINCIPAL (APP WEB)
+# ENTRY POINT
 # =====================================================
 
-@main.route('/app')
-def app_view():
+@main.route('/')
+def index():
+    """
+    Página de entrada.
+    Puede ser landing simple o redirección.
+    """
     return render_template('index.html')
 
 
 # =====================================================
-# EVENTOS / CALENDARIO
+# VISTAS APP WEB (FRONTEND)
+# =====================================================
+
+@main.route('/app')
+def app_home():
+    return render_template('home.html')
+
+
+@main.route('/app/events')
+def app_events():
+    return render_template('events.html')
+
+
+@main.route('/app/workouts')
+def app_workouts():
+    return render_template('workouts.html')
+
+
+@main.route('/app/notes')
+def app_notes():
+    return render_template('notes.html')
+
+
+# =====================================================
+# EVENTOS / CALENDARIO (API)
 # =====================================================
 
 @main.route('/events', methods=['POST'])
@@ -47,7 +75,7 @@ def create_event():
 
 @main.route('/events', methods=['GET'])
 def get_events():
-    events = Event.query.all()
+    events = Event.query.order_by(Event.event_date.asc()).all()
     return jsonify([
         {
             'id': e.id,
@@ -91,7 +119,7 @@ def delete_event(event_id):
 
 
 # =====================================================
-# WORKOUTS / GIMNASIO
+# WORKOUTS / GIMNASIO (API)
 # =====================================================
 
 @main.route('/workouts', methods=['POST'])
@@ -112,7 +140,7 @@ def create_workout():
 
 @main.route('/workouts', methods=['GET'])
 def get_workouts():
-    workouts = Workout.query.all()
+    workouts = Workout.query.order_by(Workout.date.desc()).all()
     return jsonify([
         {
             'id': w.id,
@@ -155,7 +183,7 @@ def get_exercises(workout_id):
 
 
 # =====================================================
-# NOTAS
+# NOTAS (API)
 # =====================================================
 
 @main.route('/notes', methods=['POST'])
@@ -190,7 +218,7 @@ def delete_note(note_id):
 
 
 # =====================================================
-# ESTADO DEL DÍA
+# ESTADO DEL DÍA (API)
 # =====================================================
 
 @main.route('/status', methods=['POST'])
@@ -198,7 +226,7 @@ def set_daily_status():
     data = request.json
     date = datetime.strptime(data['date'], '%Y-%m-%d').date()
 
-    # Evitar duplicado por fecha
+    # Un solo estado por día
     DailyStatus.query.filter_by(date=date).delete()
 
     status = DailyStatus(
@@ -226,7 +254,7 @@ def get_daily_status():
 
 
 # =====================================================
-# MENSAJE DIARIO
+# MENSAJE DIARIO (API)
 # =====================================================
 
 @main.route('/message', methods=['POST'])

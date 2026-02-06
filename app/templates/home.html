@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inicio 💙</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-[#fdf2f8] min-h-screen flex flex-col">
+
+<header class="bg-white shadow p-4 text-center">
+  <h1 class="text-xl font-semibold text-gray-700">
+    💕 Hola mi koalita hermosa
+  </h1>
+  <p id="daily-message" class="text-sm text-gray-500 mt-1">
+    Cargando mensaje...
+  </p>
+</header>
+
+<main class="flex-1 p-4 pb-24">
+  <section class="bg-white rounded-xl p-4 shadow">
+    <h2 class="font-semibold mb-2">😊 ¿Cómo te sientes hoy?</h2>
+
+    <select id="mood" class="w-full border rounded-lg p-2 mb-2">
+      <option value="">Selecciona</option>
+      <option value="feliz">Feliz 😄</option>
+      <option value="normal">Normal 🙂</option>
+      <option value="cansada">Cansada 😴</option>
+      <option value="estresada">Estresada 😖</option>
+    </select>
+
+    <textarea id="status-note"
+      placeholder="Escribe algo si quieres..."
+      class="w-full border rounded-lg p-2 mb-3"></textarea>
+
+    <button onclick="saveStatus()"
+      class="w-full bg-pink-400 text-white py-2 rounded-xl font-semibold">
+      Guardar 💖
+    </button>
+  </section>
+</main>
+
+<nav class="fixed bottom-0 inset-x-0 bg-white border-t shadow flex justify-around py-2 text-xs">
+  <a href="/app" class="flex flex-col items-center text-pink-400">🏠 Inicio</a>
+  <a href="/app/events" class="flex flex-col items-center">📅 Eventos</a>
+  <a href="/app/workouts" class="flex flex-col items-center">🏋️ Gym</a>
+  <a href="/app/notes" class="flex flex-col items-center">📝 Notas</a>
+</nav>
+
+<script>
+async function loadMessage() {
+  const r = await fetch('/message')
+  const d = await r.json()
+  document.getElementById('daily-message').innerText = d.message || '💖'
+}
+
+async function saveStatus() {
+  await fetch('/status', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      date: new Date().toISOString().split('T')[0],
+      mood: mood.value,
+      note: document.getElementById('status-note').value
+    })
+  })
+  alert('Estado guardado 💕')
+}
+
+loadMessage()
+</script>
+
+</body>
+</html>
