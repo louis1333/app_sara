@@ -9,23 +9,34 @@
 
 <body class="bg-[#fdf2f8] min-h-screen flex flex-col">
 
+<!-- HEADER -->
 <header class="bg-white shadow p-4 text-center font-semibold">
   📝 Notas
 </header>
 
-<main class="flex-1 p-4 pb-24">
-  <textarea id="content"
-    placeholder="Escribe una nota..."
-    class="w-full border rounded-lg p-2 mb-2"></textarea>
+<!-- MAIN -->
+<main class="flex-1 p-4 pb-24 space-y-4">
 
-  <button onclick="addNote()"
-    class="w-full bg-pink-400 text-white py-2 rounded-xl mb-4">
-    Guardar nota
-  </button>
+  <!-- NUEVA NOTA -->
+  <section class="bg-white rounded-xl p-4 shadow space-y-2">
+    <textarea id="content"
+      placeholder="Escribe una nota..."
+      class="w-full border rounded-lg p-2"></textarea>
 
-  <ul id="list" class="space-y-2 text-sm"></ul>
+    <button onclick="addNote()"
+      class="w-full bg-pink-400 text-white py-2 rounded-xl font-semibold">
+      Guardar nota
+    </button>
+  </section>
+
+  <!-- LISTA -->
+  <section>
+    <ul id="list" class="space-y-2 text-sm"></ul>
+  </section>
+
 </main>
 
+<!-- NAVBAR -->
 <nav class="fixed bottom-0 inset-x-0 bg-white border-t flex justify-around py-2 text-xs">
   <a href="/app">🏠 Inicio</a>
   <a href="/app/events">📅 Eventos</a>
@@ -34,25 +45,56 @@
 </nav>
 
 <script>
+/* ============================
+   API
+============================ */
+
 async function addNote() {
+  if (!content.value.trim()) return
+
   await fetch('/notes', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ content: content.value })
   })
-  load()
+
+  content.value = ''
+  loadNotes()
 }
 
-async function load() {
+async function deleteNote(id) {
+  if (!confirm('¿Eliminar esta nota?')) return
+
+  await fetch(`/notes/${id}`, {
+    method: 'DELETE'
+  })
+
+  loadNotes()
+}
+
+async function loadNotes() {
   const r = await fetch('/notes')
-  const d = await r.json()
+  const notes = await r.json()
+
   list.innerHTML = ''
-  d.forEach(n => {
-    list.innerHTML += `<li>📝 ${n.content}</li>`
+
+  notes.forEach(n => {
+    const li = document.createElement('li')
+    li.className = 'bg-white p-3 rounded-xl shadow flex justify-between items-start gap-2'
+
+    li.innerHTML = `
+      <p class="flex-1 whitespace-pre-wrap">📝 ${n.content}</p>
+      <button onclick="deleteNote(${n.id})"
+        class="text-red-500 text-xs mt-1">
+        🗑️
+      </button>
+    `
+
+    list.appendChild(li)
   })
 }
 
-load()
+loadNotes()
 </script>
 
 </body>

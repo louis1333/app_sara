@@ -80,6 +80,10 @@ async function loadEvents() {
   const res = await fetch('/events')
   events = await res.json()
   renderCalendar()
+
+  if (selectedDate) {
+    selectDate(selectedDate)
+  }
 }
 
 async function addEvent() {
@@ -95,6 +99,16 @@ async function addEvent() {
   })
 
   title.value = ''
+  loadEvents()
+}
+
+async function deleteEvent(id) {
+  if (!confirm('¿Eliminar este evento?')) return
+
+  await fetch(`/events/${id}`, {
+    method: 'DELETE'
+  })
+
   loadEvents()
 }
 
@@ -151,7 +165,16 @@ function selectDate(dateStr) {
 
   dayEvents.forEach(e => {
     const li = document.createElement('li')
-    li.textContent = `📌 ${e.title}`
+    li.className = 'flex justify-between items-center bg-pink-50 p-2 rounded-lg'
+
+    li.innerHTML = `
+      <span>📌 ${e.title}</span>
+      <button onclick="deleteEvent(${e.id})"
+        class="text-red-500 text-xs">
+        🗑️
+      </button>
+    `
+
     eventsList.appendChild(li)
   })
 }

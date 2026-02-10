@@ -182,6 +182,76 @@ def get_exercises(workout_id):
     ])
 
 
+@main.route('/workouts', methods=['POST'])
+def create_workout():
+    data = request.json
+
+    workout = Workout(
+        date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
+        routine=data.get('routine'),
+        notes=data.get('notes')
+    )
+
+    db.session.add(workout)
+    db.session.commit()
+
+    return jsonify({'id': workout.id}), 201
+
+
+@main.route('/workouts', methods=['GET'])
+def get_workouts():
+    workouts = Workout.query.order_by(Workout.date.desc()).all()
+    return jsonify([
+        {
+            'id': w.id,
+            'date': w.date.isoformat(),
+            'routine': w.routine
+        } for w in workouts
+    ])
+
+
+@main.route('/workouts/<int:workout_id>/exercises', methods=['POST'])
+def add_exercise(workout_id):
+    data = request.json
+
+    exercise = Exercise(
+        workout_id=workout_id,
+        name=data['name'],
+        sets=data.get('sets'),
+        reps=data.get('reps'),
+        weight=data.get('weight')
+    )
+
+    db.session.add(exercise)
+    db.session.commit()
+
+    return jsonify({'message': 'Ejercicio agregado'}), 201
+
+# =====================================================
+# EJERCICIOS-DIRECT (API)
+# =====================================================
+
+
+@main.route('/workouts/<int:workout_id>/exercises', methods=['GET'])
+def get_exercises(workout_id):
+    exercises = Exercise.query.filter_by(workout_id=workout_id).all()
+    return jsonify([
+        {
+            'id': e.id,
+            'name': e.name,
+            'sets': e.sets,
+            'reps': e.reps,
+            'weight': e.weight
+        } for e in exercises
+    ])
+
+@main.route('/exercises/<int:exercise_id>', methods=['DELETE'])
+def delete_exercise(exercise_id):
+    exercise = Exercise.query.get_or_404(exercise_id)
+    db.session.delete(exercise)
+    db.session.commit()
+    return jsonify({'message': 'Ejercicio eliminado'})
+
 # =====================================================
 # NOTAS (API)
 # =====================================================

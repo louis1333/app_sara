@@ -60,7 +60,10 @@ async function addWorkout() {
   const date = workoutDate.value
   const routine = workoutRoutine.value
 
-  if (!date || !routine) return alert('Completa los campos')
+  if (!date || !routine) {
+    alert('Completa los campos')
+    return
+  }
 
   await fetch('/workouts', {
     method: 'POST',
@@ -88,12 +91,13 @@ async function loadWorkouts() {
           <p class="font-semibold">🏋️ ${w.routine}</p>
           <p class="text-xs text-gray-500">${w.date}</p>
         </div>
-        <button onclick="toggleExercises(${w.id})" class="text-pink-400 text-sm">
+        <button onclick="toggleExercises(${w.id})"
+          class="text-pink-400 text-sm">
           Ver ejercicios
         </button>
       </div>
 
-      <div id="exercises-${w.id}" class="hidden space-y-2">
+      <div id="exercises-${w.id}" class="hidden space-y-3">
         <div class="border-t pt-3 space-y-2">
           <input placeholder="Ejercicio"
             id="name-${w.id}"
@@ -117,7 +121,7 @@ async function loadWorkouts() {
           </button>
         </div>
 
-        <ul id="list-${w.id}" class="text-sm space-y-1 mt-2"></ul>
+        <ul id="list-${w.id}" class="space-y-2 text-sm"></ul>
       </div>
     `
 
@@ -125,7 +129,7 @@ async function loadWorkouts() {
   }
 }
 
-async function toggleExercises(id) {
+function toggleExercises(id) {
   const box = document.getElementById(`exercises-${id}`)
   box.classList.toggle('hidden')
   loadExercises(id)
@@ -149,6 +153,7 @@ async function addExercise(workoutId) {
     body: JSON.stringify({ name, sets, reps, weight })
   })
 
+  document.getElementById(`name-${workoutId}`).value = ''
   loadExercises(workoutId)
 }
 
@@ -161,9 +166,60 @@ async function loadExercises(workoutId) {
 
   data.forEach(e => {
     const li = document.createElement('li')
-    li.textContent = `🏋️ ${e.name} — ${e.sets || '-'}x${e.reps || '-'} • ${e.weight || 0}kg`
+    li.className = 'bg-pink-50 p-2 rounded-lg space-y-1'
+
+    li.innerHTML = `
+      <input class="w-full border rounded p-1 text-sm"
+        id="ename-${e.id}" value="${e.name}" />
+
+      <div class="flex gap-1">
+        <input class="w-1/3 border rounded p-1 text-sm"
+          id="esets-${e.id}" type="number" value="${e.sets || ''}" />
+        <input class="w-1/3 border rounded p-1 text-sm"
+          id="ereps-${e.id}" type="number" value="${e.reps || ''}" />
+        <input class="w-1/3 border rounded p-1 text-sm"
+          id="eweight-${e.id}" type="number" value="${e.weight || ''}" />
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="updateExercise(${e.id}, ${workoutId})"
+          class="flex-1 bg-green-400 text-white text-xs py-1 rounded">
+          💾 Guardar
+        </button>
+
+        <button onclick="removeExercise(${e.id}, ${workoutId})"
+          class="flex-1 bg-red-400 text-white text-xs py-1 rounded">
+          🗑️ Borrar
+        </button>
+      </div>
+    `
     list.appendChild(li)
   })
+}
+
+async function updateExercise(exerciseId, workoutId) {
+  const name = document.getElementById(`ename-${exerciseId}`).value
+  const sets = document.getElementById(`esets-${exerciseId}`).value
+  const reps = document.getElementById(`ereps-${exerciseId}`).value
+  const weight = document.getElementById(`eweight-${exerciseId}`).value
+
+  await fetch(`/exercises/${exerciseId}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name, sets, reps, weight })
+  })
+
+  loadExercises(workoutId)
+}
+
+async function removeExercise(exerciseId, workoutId) {
+  if (!confirm('¿Eliminar ejercicio?')) return
+
+  await fetch(`/exercises/${exerciseId}`, {
+    method: 'DELETE'
+  })
+
+  loadExercises(workoutId)
 }
 
 loadWorkouts()
