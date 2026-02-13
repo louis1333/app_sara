@@ -6,8 +6,9 @@ class Config:
     SECRET_KEY = 'dev-secret-key'
 
     SQLALCHEMY_DATABASE_URI = (
-    "postgresql+psycopg2://postgres:Louis.3026225606@aws-1-us-east-1.pooler.supabase.com:6543/postgres"
+    "postgresql+psycopg2://postgres.qcxnouurjgspgqkrfvoh:Louis.3026225606@aws-1-us-east-1.pooler.supabase.com:6543/postgres"
 )
+
 
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
