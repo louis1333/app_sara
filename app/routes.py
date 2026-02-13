@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, render_template
 from datetime import datetime
-
+from app.email import send_email
 from app import db
 from app.models import (
     Event,
@@ -247,7 +247,7 @@ def set_daily_status():
 
     db.session.add(status)
     db.session.commit()
-
+    send_email("Estado del dia", status.note, "louis.alejo133@gmail.com")
     return jsonify({'message': 'Estado guardado'}), 201
 
 
