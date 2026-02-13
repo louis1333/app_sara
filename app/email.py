@@ -1,7 +1,7 @@
 import os
 import resend
 
-resend.api_key = os.getenv("RESEND_API_KEY")
+resend.api_key = "re_9S8d1zqR_Ap5gunc7RKhNGLRjnXnxsR6b""
 
 def send_email(subject, html_content, to):
     resend.Emails.send({
