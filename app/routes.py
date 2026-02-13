@@ -192,6 +192,20 @@ def delete_exercise(exercise_id):
     db.session.commit()
     return jsonify({'message': 'Ejercicio eliminado'})
 
+@main.route('/exercises/<int:exercise_id>', methods=['PUT'])
+def update_exercise(exercise_id):
+    exercise = Exercise.query.get_or_404(exercise_id)
+    data = request.json
+
+    exercise.name = data.get('name', exercise.name)
+    exercise.sets = data.get('sets', exercise.sets)
+    exercise.reps = data.get('reps', exercise.reps)
+    exercise.weight = data.get('weight', exercise.weight)
+
+    db.session.commit()
+
+    return jsonify({'message': 'Ejercicio actualizado'}), 200
+
 # =====================================================
 # NOTAS (API)
 # =====================================================
@@ -247,7 +261,7 @@ def set_daily_status():
 
     db.session.add(status)
     db.session.commit()
-    send_email("Estado del dia", status.note, "louis.alejo133@gmail.com")
+    send_email("Estado del dia: "+status.mood, "mensaje: "+status.note, "louis.alejo133@gmail.com")
     return jsonify({'message': 'Estado guardado'}), 201
 
 
