@@ -1,9 +1,10 @@
 import smtplib
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 BREVO_SMTP_LOGIN = "louis.alejo133@gmail.com"
-BREVO_SMTP_KEY = "xsmtpsib-4a48d6043168163220ed1a82850c0bb99fd2976e60aa5c461bd6acc092224974-pixihFU7RVMPGBrT"
+BREVO_SMTP_KEY = os.environ.get("BREVO_SMTP_KEY")
 
 def send_email(subject, html_content, to):
     msg = MIMEMultipart('alternative')
