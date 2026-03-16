@@ -10,7 +10,4 @@ def create_app():
     db.init_app(app)
     from app.routes import main
     app.register_blueprint(main)
-    with app.app_context():
-        from app import models as _models  # noqa: F401
-        db.create_all()
     return app
