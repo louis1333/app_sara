@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.email import send_email
 from app import db
 from app.models import (
@@ -341,3 +341,61 @@ def set_message():
 def get_message():
     msg = Message.query.filter_by(active=True).first()
     return jsonify({'message': msg.content if msg else ''})
+
+
+# =====================================================
+# RECORDATORIOS DE EVENTOS (API)
+# =====================================================
+
+@main.route('/send-reminders', methods=['GET'])
+def send_reminders():
+    today = datetime.utcnow().date()
+    tomorrow = today + timedelta(days=1)
+
+    events_today = Event.query.filter_by(event_date=today, completed=False).order_by(Event.event_time).all()
+    events_tomorrow = Event.query.filter_by(event_date=tomorrow, completed=False).order_by(Event.event_time).all()
+
+    if not events_today and not events_tomorrow:
+        return jsonify({'message': 'Sin eventos para notificar'}), 200
+
+    def format_event(e):
+        time_str = e.event_time.strftime('%H:%M') if e.event_time else ''
+        type_labels = {'exam': '📝 Examen', 'task': '✅ Tarea', 'reminder': '🔔 Recordatorio'}
+        tipo = type_labels.get(e.event_type, '📌 Evento')
+        parts = [f"<li style='margin-bottom:8px'><strong>{tipo}: {e.title}</strong>"]
+        if time_str:
+            parts.append(f" — {time_str}")
+        if e.subject:
+            parts.append(f"<br><span style='color:#666'>Materia: {e.subject}</span>")
+        if e.description:
+            parts.append(f"<br><span style='color:#666'>{e.description}</span>")
+        parts.append("</li>")
+        return ''.join(parts)
+
+    sections = []
+
+    if events_today:
+        items = ''.join(format_event(e) for e in events_today)
+        sections.append(f"""
+            <h2 style='color:#e879a0;margin-bottom:8px'>📅 Hoy — {today.strftime('%d de %B')}</h2>
+            <ul style='padding-left:16px;margin-bottom:24px'>{items}</ul>
+        """)
+
+    if events_tomorrow:
+        items = ''.join(format_event(e) for e in events_tomorrow)
+        sections.append(f"""
+            <h2 style='color:#f0a0c0;margin-bottom:8px'>🗓 Mañana — {tomorrow.strftime('%d de %B')}</h2>
+            <ul style='padding-left:16px;margin-bottom:24px'>{items}</ul>
+        """)
+
+    html_body = f"""
+        <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:24px;background:#fdf2f8;border-radius:16px'>
+            <h1 style='color:#e879a0;margin-bottom:4px'>🌸 Recordatorio para mi koalita</h1>
+            <p style='color:#888;margin-bottom:24px'>Aquí tienes tus eventos próximos 💕</p>
+            {''.join(sections)}
+            <p style='color:#aaa;font-size:12px;margin-top:16px'>Con amor 💗</p>
+        </div>
+    """
+
+    send_email("Recordatorio evento", html_body, "saradanielaayalam@gmail.com")
+    return jsonify({'message': 'Recordatorio enviado', 'hoy': len(events_today), 'mañana': len(events_tomorrow)}), 200

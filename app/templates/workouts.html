@@ -5,6 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gym 🏋️</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .sheet {
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .sheet.open {
+      transform: translateY(0);
+    }
+    .backdrop {
+      opacity: 0;
+      transition: opacity 0.32s ease;
+      pointer-events: none;
+    }
+    .backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
 </head>
 
 <body class="bg-[#fdf2f8] min-h-screen flex flex-col">
@@ -29,13 +47,14 @@
   <a href="/app/notes" class="text-gray-400 flex flex-col items-center gap-0.5">📝<span>Notas</span></a>
 </nav>
 
-<!-- ===== MODAL: NUEVA RUTINA ===== -->
-<div id="workoutModal" class="hidden fixed inset-0 z-50 flex items-end">
-  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeWorkoutModal()"></div>
-  <div class="relative bg-white w-full rounded-t-3xl px-6 pt-4 pb-10 shadow-2xl">
-    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
+<!-- ===== BOTTOM SHEET: NUEVA RUTINA ===== -->
+<div id="workoutModal" class="fixed inset-0 z-50 flex items-end pointer-events-none">
+  <div id="workoutBackdrop" class="backdrop absolute inset-0 bg-black/50" onclick="closeWorkoutModal()"></div>
+  <div id="workoutSheet" class="sheet relative bg-white w-full rounded-t-3xl px-6 pt-3 pb-10 shadow-2xl pointer-events-auto"
+       style="max-height: 90vh">
+    <!-- Drag handle -->
+    <div id="workoutDragHandle" class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-5 cursor-grab"></div>
     <h3 class="font-bold text-xl text-gray-800 mb-5">Nueva rutina</h3>
-
     <div class="space-y-4">
       <div>
         <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Fecha</label>
@@ -48,7 +67,6 @@
           class="w-full border border-gray-200 rounded-2xl p-3 mt-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 text-base" />
       </div>
     </div>
-
     <button onclick="saveWorkout()"
       class="w-full bg-pink-400 text-white py-4 rounded-2xl font-bold text-base mt-6 active:scale-95 transition-transform shadow-sm">
       Guardar rutina
@@ -56,18 +74,80 @@
   </div>
 </div>
 
-<!-- ===== MODAL: EJERCICIO (agregar / editar) ===== -->
-<div id="exerciseModal" class="hidden fixed inset-0 z-50 flex items-end">
-  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeExerciseModal()"></div>
-  <div class="relative bg-white w-full rounded-t-3xl px-6 pt-4 pb-10 shadow-2xl max-h-[92vh] flex flex-col">
-    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 flex-shrink-0"></div>
-    <div id="exerciseModalContent" class="overflow-y-auto flex-1"></div>
+<!-- ===== BOTTOM SHEET: EJERCICIO ===== -->
+<div id="exerciseModal" class="fixed inset-0 z-50 flex items-end pointer-events-none">
+  <div id="exerciseBackdrop" class="backdrop absolute inset-0 bg-black/50" onclick="closeExerciseModal()"></div>
+  <div id="exerciseSheet" class="sheet relative bg-white w-full rounded-t-3xl pt-3 pb-10 shadow-2xl pointer-events-auto flex flex-col"
+       style="max-height: 92vh">
+    <!-- Drag handle -->
+    <div id="exDragHandle" class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-1 flex-shrink-0 cursor-grab"></div>
+    <div id="exerciseModalContent" class="overflow-y-auto flex-1 px-6"></div>
   </div>
 </div>
 
 <script>
 let currentWorkoutId = null
 let currentExerciseId = null
+let currentSetsData = []   // array de {set_number, reps, weight} editable
+
+// ================================
+// BOTTOM SHEET DRAG-TO-DISMISS
+// ================================
+
+function makeSheetDraggable(handleEl, sheetEl, closeFn) {
+  let startY = 0
+  let dragging = false
+
+  handleEl.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY
+    dragging = true
+    sheetEl.style.transition = 'none'
+  }, { passive: true })
+
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return
+    const dy = e.touches[0].clientY - startY
+    if (dy > 0) sheetEl.style.transform = `translateY(${dy}px)`
+  }, { passive: true })
+
+  document.addEventListener('touchend', e => {
+    if (!dragging) return
+    dragging = false
+    const dy = e.changedTouches[0].clientY - startY
+    sheetEl.style.transition = 'transform 0.32s cubic-bezier(0.32,0.72,0,1)'
+    if (dy > 90) {
+      closeFn()
+    } else {
+      sheetEl.style.transform = 'translateY(0)'
+    }
+  }, { passive: true })
+}
+
+function openSheet(modalId, sheetId, backdropId) {
+  const modal = document.getElementById(modalId)
+  const sheet = document.getElementById(sheetId)
+  const backdrop = document.getElementById(backdropId)
+  modal.style.pointerEvents = 'auto'
+  sheet.style.transition = 'transform 0.32s cubic-bezier(0.32,0.72,0,1)'
+  requestAnimationFrame(() => {
+    sheet.classList.add('open')
+    backdrop.classList.add('open')
+  })
+}
+
+function closeSheet(modalId, sheetId, backdropId, cb) {
+  const modal = document.getElementById(modalId)
+  const sheet = document.getElementById(sheetId)
+  const backdrop = document.getElementById(backdropId)
+  sheet.style.transition = 'transform 0.32s cubic-bezier(0.32,0.72,0,1)'
+  sheet.style.transform = ''
+  sheet.classList.remove('open')
+  backdrop.classList.remove('open')
+  setTimeout(() => {
+    modal.style.pointerEvents = 'none'
+    if (cb) cb()
+  }, 320)
+}
 
 // ================================
 // WORKOUTS
@@ -76,11 +156,11 @@ let currentExerciseId = null
 function openNewWorkoutModal() {
   document.getElementById('wDate').value = new Date().toISOString().split('T')[0]
   document.getElementById('wRoutine').value = ''
-  document.getElementById('workoutModal').classList.remove('hidden')
+  openSheet('workoutModal', 'workoutSheet', 'workoutBackdrop')
 }
 
 function closeWorkoutModal() {
-  document.getElementById('workoutModal').classList.add('hidden')
+  closeSheet('workoutModal', 'workoutSheet', 'workoutBackdrop')
 }
 
 async function saveWorkout() {
@@ -143,7 +223,6 @@ async function loadWorkouts() {
           </button>
         </div>
       </div>
-
       <div id="exercises-${w.id}" class="hidden border-t border-pink-50">
         <div id="exerciseList-${w.id}" class="p-3 space-y-2"></div>
         <div class="px-3 pb-3">
@@ -212,7 +291,7 @@ function openAddExerciseModal(workoutId) {
   currentExerciseId = null
 
   document.getElementById('exerciseModalContent').innerHTML = `
-    <h3 class="font-bold text-xl text-gray-800 mb-5">Agregar ejercicio</h3>
+    <h3 class="font-bold text-xl text-gray-800 mb-5 pt-2">Agregar ejercicio</h3>
     <div class="space-y-4">
       <div>
         <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre del ejercicio</label>
@@ -221,7 +300,7 @@ function openAddExerciseModal(workoutId) {
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Número de sets</label>
-        <input id="exSets" type="number" placeholder="Ej: 3" min="1" max="10"
+        <input id="exSets" type="number" placeholder="Ej: 3" min="1" max="20"
           class="w-full border border-gray-200 rounded-2xl p-3 mt-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 text-base" />
       </div>
     </div>
@@ -230,7 +309,7 @@ function openAddExerciseModal(workoutId) {
       Continuar →
     </button>
   `
-  document.getElementById('exerciseModal').classList.remove('hidden')
+  openSheet('exerciseModal', 'exerciseSheet', 'exerciseBackdrop')
 }
 
 async function saveNewExercise() {
@@ -262,20 +341,29 @@ function openEditExerciseModal(exercise, workoutId) {
   currentWorkoutId = workoutId
   currentExerciseId = exercise.id
 
-  const setsData = (exercise.sets_data && exercise.sets_data.length > 0)
-    ? exercise.sets_data
+  currentSetsData = (exercise.sets_data && exercise.sets_data.length > 0)
+    ? exercise.sets_data.map(s => ({ set_number: s.set_number, reps: s.reps, weight: s.weight }))
     : Array.from({ length: exercise.sets || 1 }, (_, i) => ({
-        set_number: i + 1,
-        reps: exercise.reps || '',
-        weight: exercise.weight || ''
+        set_number: i + 1, reps: exercise.reps || null, weight: exercise.weight || null
       }))
 
-  const setsHTML = setsData.map((s, i) => `
-    <div class="bg-gray-50 rounded-2xl p-4">
-      <p class="text-xs font-bold text-pink-400 mb-3">Set ${i + 1}</p>
+  renderExerciseModal(exercise.name, exercise.id)
+  openSheet('exerciseModal', 'exerciseSheet', 'exerciseBackdrop')
+}
+
+function renderExerciseModal(exerciseName, exerciseId) {
+  const setsHTML = currentSetsData.map((s, i) => `
+    <div class="bg-gray-50 rounded-2xl p-4 relative" id="setRow-${i}">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-bold text-pink-400">Set ${i + 1}</p>
+        <button onclick="removeSet(${i})"
+          class="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-400 text-xs font-bold active:bg-red-200 transition-colors">
+          ×
+        </button>
+      </div>
       <div class="flex gap-3">
         <div class="flex-1">
-          <label class="text-xs text-gray-400 font-medium">Repeticiones</label>
+          <label class="text-xs text-gray-400 font-medium">Reps</label>
           <input type="number" id="set-reps-${i}" value="${s.reps || ''}" placeholder="—"
             class="w-full border border-gray-200 rounded-xl p-3 text-center text-base mt-1 focus:outline-none focus:ring-2 focus:ring-pink-200 font-semibold" />
         </div>
@@ -289,41 +377,61 @@ function openEditExerciseModal(exercise, workoutId) {
   `).join('')
 
   document.getElementById('exerciseModalContent').innerHTML = `
-    <div class="flex items-start justify-between mb-1 flex-shrink-0">
-      <h3 class="font-bold text-xl text-gray-800 leading-tight">${exercise.name}</h3>
-      <button onclick="confirmDeleteExercise(${exercise.id})"
+    <div class="flex items-start justify-between pt-2 mb-4">
+      <h3 class="font-bold text-xl text-gray-800 leading-tight">${exerciseName}</h3>
+      <button onclick="confirmDeleteExercise(${exerciseId})"
         class="ml-3 flex-shrink-0 text-xs font-semibold text-red-400 bg-red-50 px-3 py-1.5 rounded-full active:bg-red-100 transition-colors">
         Eliminar
       </button>
     </div>
-    <p class="text-xs text-gray-400 mb-4">${setsData.length} sets</p>
 
-    <div class="space-y-3">
+    <div id="setsList" class="space-y-3">
       ${setsHTML}
     </div>
 
-    <button onclick="saveExerciseSets(${setsData.length})"
-      class="w-full bg-pink-400 text-white py-4 rounded-2xl font-bold text-base mt-5 active:scale-95 transition-transform shadow-sm flex-shrink-0">
-      💾 Guardar sets
+    <button onclick="addSet()"
+      class="w-full mt-3 bg-pink-50 text-pink-400 border border-dashed border-pink-300 rounded-2xl py-3 text-sm font-semibold active:bg-pink-100 transition-colors">
+      + Agregar set
+    </button>
+
+    <button onclick="saveExerciseSets()"
+      class="w-full bg-pink-400 text-white py-4 rounded-2xl font-bold text-base mt-3 active:scale-95 transition-transform shadow-sm">
+      Guardar
     </button>
   `
-  document.getElementById('exerciseModal').classList.remove('hidden')
 }
 
-async function saveExerciseSets(setsCount) {
-  const setsData = []
-  for (let i = 0; i < setsCount; i++) {
-    setsData.push({
-      set_number: i + 1,
-      reps: parseInt(document.getElementById(`set-reps-${i}`).value) || null,
-      weight: parseFloat(document.getElementById(`set-weight-${i}`).value) || null
-    })
-  }
+function captureCurrentInputs() {
+  currentSetsData.forEach((s, i) => {
+    const repsEl = document.getElementById(`set-reps-${i}`)
+    const weightEl = document.getElementById(`set-weight-${i}`)
+    if (repsEl) s.reps = parseInt(repsEl.value) || null
+    if (weightEl) s.weight = parseFloat(weightEl.value) || null
+  })
+}
+
+function addSet() {
+  captureCurrentInputs()
+  currentSetsData.push({ set_number: currentSetsData.length + 1, reps: null, weight: null })
+  const exerciseName = document.getElementById('exerciseModalContent').querySelector('h3').textContent
+  renderExerciseModal(exerciseName, currentExerciseId)
+}
+
+function removeSet(index) {
+  captureCurrentInputs()
+  currentSetsData.splice(index, 1)
+  currentSetsData.forEach((s, i) => s.set_number = i + 1)
+  const exerciseName = document.getElementById('exerciseModalContent').querySelector('h3').textContent
+  renderExerciseModal(exerciseName, currentExerciseId)
+}
+
+async function saveExerciseSets() {
+  captureCurrentInputs()
 
   await fetch(`/exercises/${currentExerciseId}/sets`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(setsData)
+    body: JSON.stringify(currentSetsData)
   })
 
   closeExerciseModal()
@@ -338,8 +446,20 @@ async function confirmDeleteExercise(exerciseId) {
 }
 
 function closeExerciseModal() {
-  document.getElementById('exerciseModal').classList.add('hidden')
+  closeSheet('exerciseModal', 'exerciseSheet', 'exerciseBackdrop')
 }
+
+// Init drag handles
+makeSheetDraggable(
+  document.getElementById('workoutDragHandle'),
+  document.getElementById('workoutSheet'),
+  closeWorkoutModal
+)
+makeSheetDraggable(
+  document.getElementById('exDragHandle'),
+  document.getElementById('exerciseSheet'),
+  closeExerciseModal
+)
 
 loadWorkouts()
 </script>
