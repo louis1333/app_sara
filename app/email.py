@@ -1,20 +1,27 @@
-import smtplib
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 
-BREVO_SMTP_LOGIN = "louis.alejo133@gmail.com"
-BREVO_SMTP_KEY = os.environ.get("BREVO_SMTP_KEY")
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
+FROM_EMAIL = "louis.alejo133@gmail.com"
+FROM_NAME = "App Koalita"
 
 def send_email(subject, html_content, to):
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = f"App Koalita <{BREVO_SMTP_LOGIN}>"
-    msg['To'] = to
+    if not BREVO_API_KEY:
+        print("BREVO_API_KEY not set, skipping email")
+        return
 
-    msg.attach(MIMEText(html_content, 'html'))
-
-    with smtplib.SMTP('smtp-relay.brevo.com', 587) as server:
-        server.starttls()
-        server.login(BREVO_SMTP_LOGIN, BREVO_SMTP_KEY)
-        server.sendmail(BREVO_SMTP_LOGIN, to, msg.as_string())
+    response = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "api-key": BREVO_API_KEY,
+            "Content-Type": "application/json"
+        },
+        json={
+            "sender": {"name": FROM_NAME, "email": FROM_EMAIL},
+            "to": [{"email": to}],
+            "subject": subject,
+            "htmlContent": html_content
+        },
+        timeout=10
+    )
+    response.raise_for_status()

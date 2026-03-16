@@ -304,7 +304,10 @@ def set_daily_status():
 
     db.session.add(status)
     db.session.commit()
-    send_email("Estado del dia: "+status.mood, "mensaje: "+status.note, "louis.alejo133@gmail.com")
+    try:
+        send_email("Estado del dia: "+status.mood, "mensaje: "+status.note, "louis.alejo133@gmail.com")
+    except Exception as e:
+        print(f"Error enviando email: {e}")
     return jsonify({'message': 'Estado guardado'}), 201
 
 
@@ -397,5 +400,9 @@ def send_reminders():
         </div>
     """
 
-    send_email("Recordatorio evento", html_body, "saradanielaayalam@gmail.com")
+    try:
+        send_email("Recordatorio evento", html_body, "saradanielaayalam@gmail.com")
+    except Exception as e:
+        print(f"Error enviando recordatorio: {e}")
+        return jsonify({'message': 'Error enviando recordatorio', 'error': str(e)}), 500
     return jsonify({'message': 'Recordatorio enviado', 'hoy': len(events_today), 'mañana': len(events_tomorrow)}), 200
