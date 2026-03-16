@@ -1,12 +1,19 @@
-import os
-import resend
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-resend.api_key = "re_9S8d1zqR_Ap5gunc7RKhNGLRjnXnxsR6b"
+BREVO_SMTP_LOGIN = "louis.alejo133@gmail.com"
+BREVO_SMTP_KEY = "xsmtpsib-4a48d6043168163220ed1a82850c0bb99fd2976e60aa5c461bd6acc092224974-pixihFU7RVMPGBrT"
 
 def send_email(subject, html_content, to):
-    resend.Emails.send({
-        "from": "onboarding@resend.dev",
-        "to": to,  # tu correo personal
-        "subject": subject,
-        "html": html_content
-    })
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = f"App Koalita <{BREVO_SMTP_LOGIN}>"
+    msg['To'] = to
+
+    msg.attach(MIMEText(html_content, 'html'))
+
+    with smtplib.SMTP('smtp-relay.brevo.com', 587) as server:
+        server.starttls()
+        server.login(BREVO_SMTP_LOGIN, BREVO_SMTP_KEY)
+        server.sendmail(BREVO_SMTP_LOGIN, to, msg.as_string())
