@@ -4,222 +4,341 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gym 🏋️</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-[#fdf2f8] min-h-screen flex flex-col">
 
 <!-- HEADER -->
-<header class="bg-white shadow p-4 text-center font-semibold">
-  🏋️ Rutinas de Entrenamiento
+<header class="bg-white shadow-sm px-4 py-4 flex items-center justify-between sticky top-0 z-10">
+  <span class="font-bold text-gray-800 text-lg">🏋️ Mis rutinas</span>
+  <button onclick="openNewWorkoutModal()"
+    class="bg-pink-400 text-white px-4 py-2 rounded-full text-sm font-semibold shadow active:scale-95 transition-transform">
+    + Nueva
+  </button>
 </header>
 
 <!-- MAIN -->
-<main class="flex-1 p-4 pb-28 space-y-6">
-
-  <!-- CREAR RUTINA -->
-  <section class="bg-white p-4 rounded-xl shadow">
-    <h2 class="font-semibold mb-2">➕ Nueva rutina</h2>
-
-    <input id="workoutDate" type="date"
-      class="w-full border rounded-lg p-2 mb-2" />
-
-    <input id="workoutRoutine" placeholder="Nombre de la rutina"
-      class="w-full border rounded-lg p-2 mb-2" />
-
-    <button onclick="addWorkout()"
-      class="w-full bg-pink-400 text-white py-2 rounded-xl font-semibold">
-      Guardar rutina
-    </button>
-  </section>
-
-  <!-- LISTA DE RUTINAS -->
-  <section>
-    <h2 class="font-semibold mb-2 text-gray-700">📋 Mis rutinas</h2>
-    <ul id="workoutsList" class="space-y-4"></ul>
-  </section>
-
-</main>
+<main class="flex-1 p-4 pb-28 space-y-3" id="workoutsList"></main>
 
 <!-- NAVBAR -->
-<nav class="fixed bottom-0 inset-x-0 bg-white border-t flex justify-around py-2 text-xs">
-  <a href="/" class="text-gray-500">🏠 Inicio</a>
-  <a href="/app/events" class="text-gray-500">📅 Eventos</a>
-  <a href="/app/workouts" class="text-pink-400">🏋️ Gym</a>
-  <a href="/app/notes" class="text-gray-500">📝 Notas</a>
+<nav class="fixed bottom-0 inset-x-0 bg-white border-t flex justify-around py-2 text-xs z-10">
+  <a href="/" class="text-gray-400 flex flex-col items-center gap-0.5">🏠<span>Inicio</span></a>
+  <a href="/app/events" class="text-gray-400 flex flex-col items-center gap-0.5">📅<span>Eventos</span></a>
+  <a href="/app/workouts" class="text-pink-400 flex flex-col items-center gap-0.5 font-semibold">🏋️<span>Gym</span></a>
+  <a href="/app/notes" class="text-gray-400 flex flex-col items-center gap-0.5">📝<span>Notas</span></a>
 </nav>
 
-<!-- JS -->
+<!-- ===== MODAL: NUEVA RUTINA ===== -->
+<div id="workoutModal" class="hidden fixed inset-0 z-50 flex items-end">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeWorkoutModal()"></div>
+  <div class="relative bg-white w-full rounded-t-3xl px-6 pt-4 pb-10 shadow-2xl">
+    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
+    <h3 class="font-bold text-xl text-gray-800 mb-5">Nueva rutina</h3>
+
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Fecha</label>
+        <input id="wDate" type="date"
+          class="w-full border border-gray-200 rounded-2xl p-3 mt-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 text-base" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre de la rutina</label>
+        <input id="wRoutine" type="text" placeholder="Ej: Pecho y triceps"
+          class="w-full border border-gray-200 rounded-2xl p-3 mt-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 text-base" />
+      </div>
+    </div>
+
+    <button onclick="saveWorkout()"
+      class="w-full bg-pink-400 text-white py-4 rounded-2xl font-bold text-base mt-6 active:scale-95 transition-transform shadow-sm">
+      Guardar rutina
+    </button>
+  </div>
+</div>
+
+<!-- ===== MODAL: EJERCICIO (agregar / editar) ===== -->
+<div id="exerciseModal" class="hidden fixed inset-0 z-50 flex items-end">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeExerciseModal()"></div>
+  <div class="relative bg-white w-full rounded-t-3xl px-6 pt-4 pb-10 shadow-2xl max-h-[92vh] flex flex-col">
+    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 flex-shrink-0"></div>
+    <div id="exerciseModalContent" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
 <script>
-/* ============================
-   WORKOUTS
-============================ */
+let currentWorkoutId = null
+let currentExerciseId = null
 
-async function addWorkout() {
-  const date = workoutDate.value
-  const routine = workoutRoutine.value
+// ================================
+// WORKOUTS
+// ================================
 
-  if (!date || !routine) {
-    alert('Completa los campos')
-    return
-  }
+function openNewWorkoutModal() {
+  document.getElementById('wDate').value = new Date().toISOString().split('T')[0]
+  document.getElementById('wRoutine').value = ''
+  document.getElementById('workoutModal').classList.remove('hidden')
+}
+
+function closeWorkoutModal() {
+  document.getElementById('workoutModal').classList.add('hidden')
+}
+
+async function saveWorkout() {
+  const date = document.getElementById('wDate').value
+  const routine = document.getElementById('wRoutine').value.trim()
+  if (!date || !routine) { alert('Completa los campos'); return }
 
   await fetch('/workouts', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date, routine })
   })
 
-  workoutRoutine.value = ''
+  closeWorkoutModal()
+  loadWorkouts()
+}
+
+async function deleteWorkout(id) {
+  if (!confirm('¿Eliminar esta rutina y todos sus ejercicios?')) return
+  await fetch(`/workouts/${id}`, { method: 'DELETE' })
   loadWorkouts()
 }
 
 async function loadWorkouts() {
   const res = await fetch('/workouts')
   const workouts = await res.json()
+  const list = document.getElementById('workoutsList')
+  list.innerHTML = ''
 
-  workoutsList.innerHTML = ''
+  if (workouts.length === 0) {
+    list.innerHTML = `
+      <div class="text-center mt-16 text-gray-400 space-y-2">
+        <p class="text-4xl">🌸</p>
+        <p class="text-sm">No hay rutinas aún</p>
+        <p class="text-xs">Toca "+ Nueva" para empezar</p>
+      </div>`
+    return
+  }
 
   for (const w of workouts) {
-    const li = document.createElement('li')
-    li.className = 'bg-white rounded-xl p-4 shadow space-y-3'
+    const dateObj = new Date(w.date + 'T00:00:00')
+    const dateFormatted = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 
-    li.innerHTML = `
-      <div class="flex justify-between items-center">
-        <div>
-          <p class="font-semibold">🏋️ ${w.routine}</p>
-          <p class="text-xs text-gray-500">${w.date}</p>
+    const card = document.createElement('div')
+    card.className = 'bg-white rounded-2xl shadow-sm overflow-hidden'
+    card.innerHTML = `
+      <div class="p-4 flex items-center justify-between gap-3">
+        <div class="flex-1 min-w-0 cursor-pointer" onclick="toggleWorkout(${w.id})">
+          <p class="font-bold text-gray-800 truncate">${w.routine}</p>
+          <p class="text-xs text-gray-400 capitalize mt-0.5">${dateFormatted}</p>
         </div>
-        <button onclick="toggleExercises(${w.id})"
-          class="text-pink-400 text-sm">
-          Ver ejercicios
-        </button>
-      </div>
-
-      <div id="exercises-${w.id}" class="hidden space-y-3">
-        <div class="border-t pt-3 space-y-2">
-          <input placeholder="Ejercicio"
-            id="name-${w.id}"
-            class="w-full border rounded p-2 text-sm" />
-
-          <div class="flex gap-2">
-            <input placeholder="Sets" type="number"
-              id="sets-${w.id}"
-              class="w-1/3 border rounded p-2 text-sm" />
-            <input placeholder="Reps" type="number"
-              id="reps-${w.id}"
-              class="w-1/3 border rounded p-2 text-sm" />
-            <input placeholder="Kg" type="number"
-              id="weight-${w.id}"
-              class="w-1/3 border rounded p-2 text-sm" />
-          </div>
-
-          <button onclick="addExercise(${w.id})"
-            class="w-full bg-pink-300 text-white py-1 rounded-lg text-sm">
-            ➕ Agregar ejercicio
+        <div class="flex items-center gap-3 flex-shrink-0">
+          <button onclick="toggleWorkout(${w.id})"
+            class="text-pink-400 font-semibold text-sm" id="toggleBtn-${w.id}">
+            Ver ↓
+          </button>
+          <button onclick="deleteWorkout(${w.id})"
+            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-400 active:bg-red-100 transition-colors">
+            🗑
           </button>
         </div>
+      </div>
 
-        <ul id="list-${w.id}" class="space-y-2 text-sm"></ul>
+      <div id="exercises-${w.id}" class="hidden border-t border-pink-50">
+        <div id="exerciseList-${w.id}" class="p-3 space-y-2"></div>
+        <div class="px-3 pb-3">
+          <button onclick="openAddExerciseModal(${w.id})"
+            class="w-full bg-pink-50 text-pink-400 border border-dashed border-pink-300 rounded-2xl py-3 text-sm font-semibold active:bg-pink-100 transition-colors">
+            + Agregar ejercicio
+          </button>
+        </div>
       </div>
     `
-
-    workoutsList.appendChild(li)
+    list.appendChild(card)
   }
 }
 
-function toggleExercises(id) {
+async function toggleWorkout(id) {
   const box = document.getElementById(`exercises-${id}`)
+  const btn = document.getElementById(`toggleBtn-${id}`)
+  const isHidden = box.classList.contains('hidden')
   box.classList.toggle('hidden')
-  loadExercises(id)
+  btn.textContent = isHidden ? 'Ver ↑' : 'Ver ↓'
+  if (isHidden) loadExercises(id)
 }
 
-/* ============================
-   EXERCISES
-============================ */
-
-async function addExercise(workoutId) {
-  const name = document.getElementById(`name-${workoutId}`).value
-  const sets = document.getElementById(`sets-${workoutId}`).value
-  const reps = document.getElementById(`reps-${workoutId}`).value
-  const weight = document.getElementById(`weight-${workoutId}`).value
-
-  if (!name) return
-
-  await fetch(`/workouts/${workoutId}/exercises`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ name, sets, reps, weight })
-  })
-
-  document.getElementById(`name-${workoutId}`).value = ''
-  loadExercises(workoutId)
-}
+// ================================
+// EXERCISES LIST
+// ================================
 
 async function loadExercises(workoutId) {
   const res = await fetch(`/workouts/${workoutId}/exercises`)
-  const data = await res.json()
-
-  const list = document.getElementById(`list-${workoutId}`)
+  const exercises = await res.json()
+  const list = document.getElementById(`exerciseList-${workoutId}`)
   list.innerHTML = ''
 
-  data.forEach(e => {
-    const li = document.createElement('li')
-    li.className = 'bg-pink-50 p-2 rounded-lg space-y-1'
+  if (exercises.length === 0) {
+    list.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Sin ejercicios aún</p>'
+    return
+  }
 
-    li.innerHTML = `
-      <input class="w-full border rounded p-1 text-sm"
-        id="ename-${e.id}" value="${e.name}" />
+  exercises.forEach((e, i) => {
+    const setsCount = e.sets_data && e.sets_data.length > 0 ? e.sets_data.length : (e.sets || 0)
+    const filledSets = e.sets_data ? e.sets_data.filter(s => s.reps || s.weight).length : 0
+    const summary = setsCount > 0
+      ? (filledSets > 0 ? `${filledSets}/${setsCount} sets completados` : `${setsCount} sets`)
+      : 'Sin sets'
 
-      <div class="flex gap-1">
-        <input class="w-1/3 border rounded p-1 text-sm"
-          id="esets-${e.id}" type="number" value="${e.sets || ''}" />
-        <input class="w-1/3 border rounded p-1 text-sm"
-          id="ereps-${e.id}" type="number" value="${e.reps || ''}" />
-        <input class="w-1/3 border rounded p-1 text-sm"
-          id="eweight-${e.id}" type="number" value="${e.weight || ''}" />
+    const div = document.createElement('div')
+    div.className = 'bg-pink-50 rounded-2xl p-3.5 flex items-center justify-between cursor-pointer active:bg-pink-100 transition-colors'
+    div.onclick = () => openEditExerciseModal(e, workoutId)
+    div.innerHTML = `
+      <div>
+        <p class="font-semibold text-sm text-gray-800">${i + 1}. ${e.name}</p>
+        <p class="text-xs text-gray-400 mt-0.5">${summary}</p>
       </div>
-
-      <div class="flex gap-2">
-        <button onclick="updateExercise(${e.id}, ${workoutId})"
-          class="flex-1 bg-green-400 text-white text-xs py-1 rounded">
-          💾 Guardar
-        </button>
-
-        <button onclick="removeExercise(${e.id}, ${workoutId})"
-          class="flex-1 bg-red-400 text-white text-xs py-1 rounded">
-          🗑️ Borrar
-        </button>
-      </div>
+      <span class="text-pink-300 text-xl font-light">›</span>
     `
-    list.appendChild(li)
+    list.appendChild(div)
   })
 }
 
-async function updateExercise(exerciseId, workoutId) {
-  const name = document.getElementById(`ename-${exerciseId}`).value
-  const sets = document.getElementById(`esets-${exerciseId}`).value
-  const reps = document.getElementById(`ereps-${exerciseId}`).value
-  const weight = document.getElementById(`eweight-${exerciseId}`).value
+// ================================
+// MODAL: AGREGAR EJERCICIO
+// ================================
 
-  await fetch(`/exercises/${exerciseId}`, {
+function openAddExerciseModal(workoutId) {
+  currentWorkoutId = workoutId
+  currentExerciseId = null
+
+  document.getElementById('exerciseModalContent').innerHTML = `
+    <h3 class="font-bold text-xl text-gray-800 mb-5">Agregar ejercicio</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre del ejercicio</label>
+        <input id="exName" type="text" placeholder="Ej: Press de banca"
+          class="w-full border border-gray-200 rounded-2xl p-3 mt-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 text-base" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Número de sets</label>
+        <input id="exSets" type="number" placeholder="Ej: 3" min="1" max="10"
+          class="w-full border border-gray-200 rounded-2xl p-3 mt-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 text-base" />
+      </div>
+    </div>
+    <button onclick="saveNewExercise()"
+      class="w-full bg-pink-400 text-white py-4 rounded-2xl font-bold text-base mt-6 active:scale-95 transition-transform shadow-sm">
+      Continuar →
+    </button>
+  `
+  document.getElementById('exerciseModal').classList.remove('hidden')
+}
+
+async function saveNewExercise() {
+  const name = document.getElementById('exName').value.trim()
+  const sets = parseInt(document.getElementById('exSets').value)
+  if (!name || !sets || sets < 1) { alert('Completa nombre y número de sets'); return }
+
+  const res = await fetch(`/workouts/${currentWorkoutId}/exercises`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, sets })
+  })
+  const data = await res.json()
+
+  const exercise = {
+    id: data.id,
+    name,
+    sets,
+    sets_data: Array.from({ length: sets }, (_, i) => ({ set_number: i + 1, reps: null, weight: null }))
+  }
+  openEditExerciseModal(exercise, currentWorkoutId)
+}
+
+// ================================
+// MODAL: EDITAR EJERCICIO (sets)
+// ================================
+
+function openEditExerciseModal(exercise, workoutId) {
+  currentWorkoutId = workoutId
+  currentExerciseId = exercise.id
+
+  const setsData = (exercise.sets_data && exercise.sets_data.length > 0)
+    ? exercise.sets_data
+    : Array.from({ length: exercise.sets || 1 }, (_, i) => ({
+        set_number: i + 1,
+        reps: exercise.reps || '',
+        weight: exercise.weight || ''
+      }))
+
+  const setsHTML = setsData.map((s, i) => `
+    <div class="bg-gray-50 rounded-2xl p-4">
+      <p class="text-xs font-bold text-pink-400 mb-3">Set ${i + 1}</p>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="text-xs text-gray-400 font-medium">Repeticiones</label>
+          <input type="number" id="set-reps-${i}" value="${s.reps || ''}" placeholder="—"
+            class="w-full border border-gray-200 rounded-xl p-3 text-center text-base mt-1 focus:outline-none focus:ring-2 focus:ring-pink-200 font-semibold" />
+        </div>
+        <div class="flex-1">
+          <label class="text-xs text-gray-400 font-medium">Peso (kg)</label>
+          <input type="number" step="0.5" id="set-weight-${i}" value="${s.weight || ''}" placeholder="—"
+            class="w-full border border-gray-200 rounded-xl p-3 text-center text-base mt-1 focus:outline-none focus:ring-2 focus:ring-pink-200 font-semibold" />
+        </div>
+      </div>
+    </div>
+  `).join('')
+
+  document.getElementById('exerciseModalContent').innerHTML = `
+    <div class="flex items-start justify-between mb-1 flex-shrink-0">
+      <h3 class="font-bold text-xl text-gray-800 leading-tight">${exercise.name}</h3>
+      <button onclick="confirmDeleteExercise(${exercise.id})"
+        class="ml-3 flex-shrink-0 text-xs font-semibold text-red-400 bg-red-50 px-3 py-1.5 rounded-full active:bg-red-100 transition-colors">
+        Eliminar
+      </button>
+    </div>
+    <p class="text-xs text-gray-400 mb-4">${setsData.length} sets</p>
+
+    <div class="space-y-3">
+      ${setsHTML}
+    </div>
+
+    <button onclick="saveExerciseSets(${setsData.length})"
+      class="w-full bg-pink-400 text-white py-4 rounded-2xl font-bold text-base mt-5 active:scale-95 transition-transform shadow-sm flex-shrink-0">
+      💾 Guardar sets
+    </button>
+  `
+  document.getElementById('exerciseModal').classList.remove('hidden')
+}
+
+async function saveExerciseSets(setsCount) {
+  const setsData = []
+  for (let i = 0; i < setsCount; i++) {
+    setsData.push({
+      set_number: i + 1,
+      reps: parseInt(document.getElementById(`set-reps-${i}`).value) || null,
+      weight: parseFloat(document.getElementById(`set-weight-${i}`).value) || null
+    })
+  }
+
+  await fetch(`/exercises/${currentExerciseId}/sets`, {
     method: 'PUT',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ name, sets, reps, weight })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(setsData)
   })
 
-  loadExercises(workoutId)
+  closeExerciseModal()
+  loadExercises(currentWorkoutId)
 }
 
-async function removeExercise(exerciseId, workoutId) {
-  if (!confirm('¿Eliminar ejercicio?')) return
+async function confirmDeleteExercise(exerciseId) {
+  if (!confirm('¿Eliminar este ejercicio?')) return
+  await fetch(`/exercises/${exerciseId}`, { method: 'DELETE' })
+  closeExerciseModal()
+  loadExercises(currentWorkoutId)
+}
 
-  await fetch(`/exercises/${exerciseId}`, {
-    method: 'DELETE'
-  })
-
-  loadExercises(workoutId)
+function closeExerciseModal() {
+  document.getElementById('exerciseModal').classList.add('hidden')
 }
 
 loadWorkouts()

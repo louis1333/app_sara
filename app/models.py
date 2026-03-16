@@ -24,7 +24,7 @@ class Workout(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    exercises = db.relationship('Exercise', backref='workout', lazy=True)
+    exercises = db.relationship('Exercise', backref='workout', lazy=True, cascade='all, delete-orphan')
 
 
 class Exercise(db.Model):
@@ -35,6 +35,15 @@ class Exercise(db.Model):
     reps = db.Column(db.Integer)
     weight = db.Column(db.Float)
     notes = db.Column(db.Text)
+    set_details = db.relationship('ExerciseSet', backref='exercise', lazy=True, cascade='all, delete-orphan')
+
+
+class ExerciseSet(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
+    set_number = db.Column(db.Integer, nullable=False)
+    reps = db.Column(db.Integer)
+    weight = db.Column(db.Float)
 
 
 class DailyStatus(db.Model):

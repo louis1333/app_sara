@@ -6,6 +6,7 @@ from app.models import (
     Event,
     Workout,
     Exercise,
+    ExerciseSet,
     Note,
     DailyStatus,
     Message
@@ -162,6 +163,14 @@ def get_workouts():
 # EJERCICIOS
 # =====================================================
 
+@main.route('/workouts/<int:workout_id>', methods=['DELETE'])
+def delete_workout(workout_id):
+    workout = Workout.query.get_or_404(workout_id)
+    db.session.delete(workout)
+    db.session.commit()
+    return jsonify({'message': 'Rutina eliminada'})
+
+
 @main.route('/workouts/<int:workout_id>/exercises', methods=['POST'])
 def add_exercise(workout_id):
     data = request.json
@@ -175,23 +184,48 @@ def add_exercise(workout_id):
     )
 
     db.session.add(exercise)
-    db.session.commit()
+    db.session.flush()
 
-    return jsonify({'message': 'Ejercicio agregado'}), 201
+    sets_count = data.get('sets', 0)
+    if sets_count:
+        for i in range(1, int(sets_count) + 1):
+            db.session.add(ExerciseSet(exercise_id=exercise.id, set_number=i))
+
+    db.session.commit()
+    return jsonify({'id': exercise.id, 'message': 'Ejercicio agregado'}), 201
 
 
 @main.route('/workouts/<int:workout_id>/exercises', methods=['GET'])
 def get_exercises(workout_id):
     exercises = Exercise.query.filter_by(workout_id=workout_id).all()
-    return jsonify([
-        {
+    result = []
+    for e in exercises:
+        sets_data = ExerciseSet.query.filter_by(exercise_id=e.id).order_by(ExerciseSet.set_number).all()
+        result.append({
             'id': e.id,
             'name': e.name,
             'sets': e.sets,
             'reps': e.reps,
-            'weight': e.weight
-        } for e in exercises
-    ])
+            'weight': e.weight,
+            'sets_data': [{'set_number': s.set_number, 'reps': s.reps, 'weight': s.weight} for s in sets_data]
+        })
+    return jsonify(result)
+
+
+@main.route('/exercises/<int:exercise_id>/sets', methods=['PUT'])
+def save_exercise_sets(exercise_id):
+    Exercise.query.get_or_404(exercise_id)
+    data = request.json
+    ExerciseSet.query.filter_by(exercise_id=exercise_id).delete()
+    for s in data:
+        db.session.add(ExerciseSet(
+            exercise_id=exercise_id,
+            set_number=s['set_number'],
+            reps=s.get('reps'),
+            weight=s.get('weight')
+        ))
+    db.session.commit()
+    return jsonify({'message': 'Sets guardados'})
 
 
 @main.route('/exercises/<int:exercise_id>', methods=['DELETE'])
