@@ -104,17 +104,6 @@ function toggleCartasModal() {
 async function loadCartas() {
   const r = await fetch('/cartas')
   _cartas = await r.json()
-
-  // Marcar como vistas las nuevas
-  for (const c of _cartas.filter(c => c.estado === 'enviado')) {
-    await fetch(`/cartas/${c.id}/vista`, { method: 'POST' })
-    c.estado = 'visto'
-  }
-
-  // Quitar indicador
-  document.getElementById('cartas-dot').classList.add('hidden')
-  document.getElementById('cartas-btn').classList.remove('new-carta')
-
   showCartasList()
 }
 
@@ -160,9 +149,20 @@ function showCartasList() {
   })
 }
 
-function showCartaDetalle(id) {
+async function showCartaDetalle(id) {
   const c = _cartas.find(x => x.id === id)
   if (!c) return
+
+  // Marcar como vista al abrir esta carta específica
+  if (c.estado === 'enviado') {
+    await fetch(`/cartas/${id}/vista`, { method: 'POST' })
+    c.estado = 'visto'
+    // Quitar indicador si ya no hay más nuevas
+    if (!_cartas.some(x => x.estado === 'enviado')) {
+      document.getElementById('cartas-dot').classList.add('hidden')
+      document.getElementById('cartas-btn').classList.remove('new-carta')
+    }
+  }
 
   document.getElementById('cartas-back').classList.remove('hidden')
   document.getElementById('cartas-title').textContent = 'Carta'
