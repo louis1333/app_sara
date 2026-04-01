@@ -63,3 +63,12 @@ class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     active = db.Column(db.Boolean, default=True)
+
+
+class Carta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    mensaje = db.Column(db.Text, nullable=False)
+    respuesta = db.Column(db.Text)
+    estado = db.Column(db.String(20), nullable=False, default='enviado')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    visto_en = db.Column(db.Text, default='[]')  # JSON array de ISO timestamps

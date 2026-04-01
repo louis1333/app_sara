@@ -1,0 +1,235 @@
+<!-- ===================== CARTAS WIDGET ===================== -->
+<style>
+  #cartas-sheet {
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #cartas-sheet.open {
+    transform: translateY(0);
+  }
+  #cartas-overlay {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.32s ease;
+  }
+  #cartas-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.7); }
+    70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(239,68,68,0);    }
+  }
+  #cartas-btn.new-carta {
+    animation: pulse-ring 1.4s ease infinite;
+  }
+  .carta-view {
+    display: none;
+  }
+  .carta-view.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+</style>
+
+<!-- Botón flotante -->
+<button id="cartas-btn" onclick="toggleCartasModal()"
+  class="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-white shadow-xl flex items-center justify-center text-2xl border-2 border-pink-200">
+  💌
+</button>
+
+<!-- Punto rojo -->
+<span id="cartas-dot"
+  class="fixed z-50 hidden w-4 h-4 bg-red-500 rounded-full border-2 border-white"
+  style="bottom: 94px; right: 12px;"></span>
+
+<!-- Overlay -->
+<div id="cartas-overlay" onclick="closeCartasModal()"
+  class="fixed inset-0 bg-black/40 z-40"></div>
+
+<!-- Bottom sheet -->
+<div id="cartas-sheet"
+  class="fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-2xl flex flex-col"
+  style="max-height: 85vh;">
+
+  <!-- Header -->
+  <div class="flex-shrink-0 p-4 border-b flex items-center gap-3">
+    <button id="cartas-back" onclick="showCartasList()"
+      class="hidden text-pink-400 text-lg leading-none pr-1">‹</button>
+    <h2 id="cartas-title" class="font-semibold text-gray-700 flex-1">💌 Cartas para ti</h2>
+    <button onclick="closeCartasModal()" class="text-gray-400 text-xl leading-none">✕</button>
+  </div>
+
+  <!-- Vista: lista -->
+  <div id="view-lista" class="carta-view active overflow-y-auto p-4 space-y-3"></div>
+
+  <!-- Vista: detalle -->
+  <div id="view-detalle" class="carta-view overflow-y-auto p-4 space-y-4"></div>
+
+</div>
+
+<script>
+let _cartas = []
+
+async function checkCartasPending() {
+  try {
+    const r = await fetch('/cartas/pending')
+    const d = await r.json()
+    if (d.count > 0) {
+      document.getElementById('cartas-dot').classList.remove('hidden')
+      document.getElementById('cartas-btn').classList.add('new-carta')
+    }
+  } catch(e) {}
+}
+
+async function openCartasModal() {
+  document.getElementById('cartas-overlay').classList.add('open')
+  document.getElementById('cartas-sheet').classList.add('open')
+  await loadCartas()
+}
+
+function closeCartasModal() {
+  document.getElementById('cartas-overlay').classList.remove('open')
+  document.getElementById('cartas-sheet').classList.remove('open')
+}
+
+function toggleCartasModal() {
+  const sheet = document.getElementById('cartas-sheet')
+  sheet.classList.contains('open') ? closeCartasModal() : openCartasModal()
+}
+
+async function loadCartas() {
+  const r = await fetch('/cartas')
+  _cartas = await r.json()
+
+  // Marcar como vistas las nuevas
+  for (const c of _cartas.filter(c => c.estado === 'enviado')) {
+    await fetch(`/cartas/${c.id}/vista`, { method: 'POST' })
+    c.estado = 'visto'
+  }
+
+  // Quitar indicador
+  document.getElementById('cartas-dot').classList.add('hidden')
+  document.getElementById('cartas-btn').classList.remove('new-carta')
+
+  showCartasList()
+}
+
+function showCartasList() {
+  document.getElementById('cartas-back').classList.add('hidden')
+  document.getElementById('cartas-title').textContent = '💌 Cartas para ti'
+
+  document.getElementById('view-lista').classList.add('active')
+  document.getElementById('view-detalle').classList.remove('active')
+
+  const lista = document.getElementById('view-lista')
+  lista.innerHTML = ''
+
+  if (_cartas.length === 0) {
+    lista.innerHTML = '<p class="text-gray-400 text-center text-sm py-12">Aún no hay cartas 🌸</p>'
+    return
+  }
+
+  _cartas.forEach(c => {
+    const date = new Date(c.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })
+    const preview = c.mensaje.length > 60 ? c.mensaje.slice(0, 60) + '…' : c.mensaje
+    const badge = c.estado === 'enviado'
+      ? '<span class="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full font-medium">Nueva</span>'
+      : (c.respuesta
+          ? '<span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Respondida</span>'
+          : '<span class="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Vista</span>')
+
+    const div = document.createElement('div')
+    div.onclick = () => showCartaDetalle(c.id)
+    div.className = 'bg-pink-50 rounded-xl p-4 flex items-center gap-3 active:bg-pink-100 cursor-pointer transition-colors'
+    div.innerHTML = `
+      <div class="text-2xl">💌</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-0.5">
+          ${badge}
+          <span class="text-xs text-gray-400">${date}</span>
+        </div>
+        <p class="text-sm text-gray-700 truncate">${preview}</p>
+      </div>
+      <span class="text-pink-300 text-xl flex-shrink-0">›</span>
+    `
+    lista.appendChild(div)
+  })
+}
+
+function showCartaDetalle(id) {
+  const c = _cartas.find(x => x.id === id)
+  if (!c) return
+
+  document.getElementById('cartas-back').classList.remove('hidden')
+  document.getElementById('cartas-title').textContent = 'Carta'
+
+  document.getElementById('view-lista').classList.remove('active')
+  document.getElementById('view-detalle').classList.add('active')
+
+  const date = new Date(c.created_at).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+  const respuestaHtml = c.respuesta
+    ? `<div class="bg-white rounded-xl p-4 border border-pink-100">
+         <p class="text-xs text-pink-400 font-semibold mb-1">Tu respuesta</p>
+         <p class="text-sm text-gray-700 leading-relaxed">${c.respuesta}</p>
+       </div>`
+    : `<button id="btn-responder-${c.id}" onclick="mostrarTextareaRespuesta(${c.id})"
+         class="w-full bg-pink-400 text-white py-3 rounded-xl font-semibold text-sm">
+         Responder 💌
+       </button>
+       <div id="form-respuesta-${c.id}" class="hidden space-y-2">
+         <textarea id="textarea-respuesta-${c.id}"
+           placeholder="Escribe tu respuesta..."
+           class="w-full border border-pink-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none"
+           rows="4"></textarea>
+         <button onclick="enviarRespuesta(${c.id})"
+           class="w-full bg-pink-400 text-white py-3 rounded-xl font-semibold text-sm">
+           Enviar 💌
+         </button>
+       </div>`
+
+  document.getElementById('view-detalle').innerHTML = `
+    <p class="text-xs text-gray-400 capitalize">${date}</p>
+    <div class="bg-pink-50 rounded-xl p-4">
+      <p class="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap">${c.mensaje}</p>
+    </div>
+    ${respuestaHtml}
+  `
+}
+
+function mostrarTextareaRespuesta(id) {
+  document.getElementById(`btn-responder-${id}`).classList.add('hidden')
+  document.getElementById(`form-respuesta-${id}`).classList.remove('hidden')
+  document.getElementById(`textarea-respuesta-${id}`).focus()
+}
+
+async function enviarRespuesta(id) {
+  const textarea = document.getElementById(`textarea-respuesta-${id}`)
+  if (!textarea.value.trim()) return
+
+  const btn = textarea.nextElementSibling
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+
+  try {
+    await fetch(`/cartas/${id}/responder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ respuesta: textarea.value })
+    })
+    // Actualizar local y redibujar detalle
+    const c = _cartas.find(x => x.id === id)
+    if (c) c.respuesta = textarea.value
+    showCartaDetalle(id)
+  } catch(e) {
+    btn.disabled = false
+    btn.textContent = 'Enviar 💌'
+  }
+}
+
+checkCartasPending()
+</script>

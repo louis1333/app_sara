@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, request, jsonify, render_template
 from datetime import datetime, timedelta
 from app.email import send_email
@@ -9,7 +10,8 @@ from app.models import (
     ExerciseSet,
     Note,
     DailyStatus,
-    Message
+    Message,
+    Carta
 )
 
 main = Blueprint('main', __name__)
@@ -344,6 +346,77 @@ def set_message():
 def get_message():
     msg = Message.query.filter_by(active=True).first()
     return jsonify({'message': msg.content if msg else ''})
+
+
+# =====================================================
+# RECORDATORIOS DE EVENTOS (API)
+# =====================================================
+
+# =====================================================
+# CARTAS (API)
+# =====================================================
+
+@main.route('/cartas', methods=['POST'])
+def create_carta():
+    data = request.json
+    carta = Carta(mensaje=data['mensaje'])
+    db.session.add(carta)
+    db.session.commit()
+    return jsonify({'id': carta.id}), 201
+
+
+@main.route('/cartas', methods=['GET'])
+def get_cartas():
+    cartas = Carta.query.order_by(Carta.created_at.desc()).all()
+    return jsonify([{
+        'id': c.id,
+        'mensaje': c.mensaje,
+        'respuesta': c.respuesta,
+        'estado': c.estado,
+        'created_at': c.created_at.isoformat(),
+        'visto_en': json.loads(c.visto_en or '[]')
+    } for c in cartas])
+
+
+@main.route('/cartas/pending', methods=['GET'])
+def cartas_pending():
+    count = Carta.query.filter_by(estado='enviado').count()
+    return jsonify({'count': count})
+
+
+@main.route('/cartas/<int:carta_id>/vista', methods=['POST'])
+def marcar_vista(carta_id):
+    carta = Carta.query.get_or_404(carta_id)
+    visto_list = json.loads(carta.visto_en or '[]')
+    visto_list.append(datetime.utcnow().isoformat())
+    carta.visto_en = json.dumps(visto_list)
+    carta.estado = 'visto'
+    db.session.commit()
+    return jsonify({'message': 'Marcada como vista'})
+
+
+@main.route('/cartas/<int:carta_id>/responder', methods=['POST'])
+def responder_carta(carta_id):
+    carta = Carta.query.get_or_404(carta_id)
+    data = request.json
+    carta.respuesta = data['respuesta']
+    db.session.commit()
+    try:
+        send_email(
+            "💌 Koalita respondió tu carta",
+            f"""<div style='font-family:sans-serif;max-width:480px;margin:auto;padding:24px;background:#fdf2f8;border-radius:16px'>
+                <h1 style='color:#e879a0;margin-bottom:4px'>💌 Respuesta de Koalita</h1>
+                <p style='color:#555;margin-bottom:8px'><strong>Tu carta:</strong></p>
+                <blockquote style='border-left:3px solid #f9a8d4;padding-left:12px;color:#888;margin-bottom:16px'>{carta.mensaje}</blockquote>
+                <p style='color:#555;margin-bottom:8px'><strong>Su respuesta:</strong></p>
+                <p style='color:#333;background:#fff;padding:16px;border-radius:12px'>{carta.respuesta}</p>
+                <p style='color:#aaa;font-size:12px;margin-top:16px'>Con amor 💗</p>
+            </div>""",
+            "louis.alejo133@gmail.com"
+        )
+    except Exception as e:
+        print(f"Error enviando email de respuesta: {e}")
+    return jsonify({'message': 'Respuesta guardada'})
 
 
 # =====================================================
